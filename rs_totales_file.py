@@ -2,7 +2,7 @@ from file_utils import read_excel_file
 
 class RSTotalesFile:
     # Define column name constants
-    COL_RS_ID = 'RS ID'
+    COL_DBSNP_ID = 'dbSNP ID'
     COL_REFERENCE_ALLELE = 'Reference Allele'
 
     def __init__(self, file):
@@ -24,9 +24,15 @@ class RSTotalesFile:
         Raises:
             ValueError: If any required column is missing
         """
-        # Check if the Reference Allele column exists
-        if self.COL_REFERENCE_ALLELE not in self.data.columns:
-            raise ValueError(f"Missing required column '{self.COL_REFERENCE_ALLELE}' in RS totales file")
+        missing_columns = []
+        required_columns = [self.COL_DBSNP_ID, self.COL_REFERENCE_ALLELE]
+
+        for col in required_columns:
+            if col not in self.data.columns:
+                missing_columns.append(col)
+
+        if missing_columns:
+            raise ValueError(f"Missing required columns in RS totales file: {', '.join(missing_columns)}")
 
     def _extract_rss(self):
         """
@@ -35,14 +41,14 @@ class RSTotalesFile:
         Returns:
             dict: Dictionary with RS values as keys and Reference Allele values as values
         """
-        # Get the first column values, skipping the header (first row)
-        first_column = self.data.iloc[1:, 0]
+        # Get the RS ID values from the dbSNP ID column
+        rs_column = self.data[self.COL_DBSNP_ID].dropna()
 
         # Convert to string and strip whitespace
-        first_column = first_column.astype(str).str.strip()
+        rs_column = rs_column.astype(str).str.strip()
 
         # Check if all values start with "rs" (case insensitive)
-        invalid_values = [val for val in first_column if not val.lower().startswith("rs")]
+        invalid_values = [val for val in rs_column if not val.lower().startswith("rs")]
 
         if invalid_values:
             error_message = f"Invalid RS values found in the RS totales file: {', '.join(invalid_values)}"
@@ -50,7 +56,7 @@ class RSTotalesFile:
 
         # Create a dictionary with RS values as keys and Reference Allele values as values
         rs_dict = {}
-        for index, rs_id in zip(first_column.index, first_column):
+        for index, rs_id in zip(rs_column.index, rs_column):
             reference_allele = self.data.at[index, self.COL_REFERENCE_ALLELE]
             rs_dict[rs_id] = reference_allele
 

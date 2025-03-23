@@ -2,24 +2,37 @@ import streamlit as st
 import pandas as pd
 from variant_file import VariantFile
 from rs_totales_file import RSTotalesFile
+from translations import SPANISH as T
+
+# Set the page to wide mode at the very beginning
+st.set_page_config(
+    page_title=T["app_title"],
+    layout="wide"
+)
 
 def main():
-    st.title("Excel File Sequence Extractor")
+    st.title(T["app_title"])
 
     # First input for single file
-    st.subheader("Input Files")
-    rs_totales_file = st.file_uploader("RS totales", type=["xlsx"])
+    st.subheader(T["input_files_header"])
+    rs_totales_file = st.file_uploader(T["rs_totales_label"], type=["xlsx"])
+    # Add hint about required columns for RS totales file
+    st.caption(T["rs_totales_hint"])
 
     # Second input for multiple files
-    variant_tables_files = st.file_uploader("Variant tables", type=["xlsx"], accept_multiple_files=True)
+    variant_tables_files = st.file_uploader(T["variant_tables_label"], type=["xlsx"], accept_multiple_files=True)
+    # Add hint about required columns and filename format for variant files
+    st.caption(T["variant_tables_hint"])
+    # Add separate hint about filename format
+    st.caption(T["filename_hint"])
 
     # Submit button
-    if st.button("Submit"):
+    if st.button(T["submit_button"]):
         if rs_totales_file is None or not variant_tables_files:
-            st.error("Please upload all required files.")
+            st.error(T["please_upload_error"])
         else:
             # Show spinner while processing
-            with st.spinner("Processing files..."):
+            with st.spinner(T["processing_spinner"]):
                 try:
                     # Process the RS totales file
                     rs_file = RSTotalesFile(rs_totales_file)
@@ -39,33 +52,33 @@ def main():
 
                     # Display results
                     total_rows = count_total_rows(all_dfs)
-                    st.success(f"Processing complete!")
-                    st.metric("Total rows parsed across all files", total_rows)
+                    st.success(T["processing_complete"])
+                    st.metric(T["total_rows_parsed"], total_rows)
 
                     # Apply styling based on case matrix and display
-                    st.subheader("Variant Files Statistics")
+                    st.subheader(T["stats_table_header"])
                     styled_df = style_dataframe(stats_df, case_matrix)
                     st.dataframe(styled_df, hide_index=True)
 
                     # Download button for CSV (unstyled)
                     csv = stats_df.to_csv(index=False)
                     st.download_button(
-                        label="Download Statistics as CSV",
+                        label=T["download_button"],
                         data=csv,
                         file_name="variant_files_statistics.csv",
                         mime="text/csv"
                     )
 
                     # Display color legend
-                    st.markdown("""
-                    ### Color Legend
-                    - 🔵 **Blue**: Homozygous reference (frequency = 1)
-                    - 🟠 **Orange**: Heterozygous (frequency = 0.5)
-                    - ⚪ **Uncolored**: Reference only (RS not found in variant file)
+                    st.markdown(f"""
+                    ### {T["color_legend_header"]}
+                    - 🔵 **{T["color_homozygous"]}**
+                    - 🟠 **{T["color_heterozygous"]}**
+                    - ⚪ **{T["color_reference"]}**
                     """)
 
                 except ValueError as e:
-                    st.error(f"Error processing files: {str(e)}")
+                    st.error(T["error_processing"].format(str(e)))
 
 def count_total_rows(dataframes):
     """Count total rows across all dataframes."""
