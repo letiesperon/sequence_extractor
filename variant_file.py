@@ -8,6 +8,11 @@ class VariantFile:
     COL_VARIANT_ALLELE = 'Variant Allele'
     COL_DBSNP_ID = 'dbSNP ID'
 
+    # Case constants for coloring
+    CASE_HOMOZYGOUS = "HOMOZYGOUS"  # frequency = 1
+    CASE_HETEROZYGOUS = "HETEROZYGOUS"  # frequency = 0.5
+    CASE_REFERENCE = "REFERENCE"  # RS not found in variant file
+
     RELEVANT_COLUMNS = [COL_VARIANT_FREQUENCY, COL_REFERENCE_ALLELE, COL_VARIANT_ALLELE]
 
     def __init__(self, file):
@@ -49,6 +54,39 @@ class VariantFile:
         match = re.match(r'(\d+)', self.name)
         return match.group(1) if match else self.name
 
+    def get_sequence_case(self, rs_id, rs_reference_values):
+        """
+        Determine which case applies for a given RS ID.
+
+        Args:
+            rs_id (str): The RS ID to search for
+            rs_reference_values (dict): Dictionary mapping RS IDs to reference allele values
+
+        Returns:
+            str: One of the case constants:
+                - CASE_HOMOZYGOUS: RS found with frequency ~1.0
+                - CASE_HETEROZYGOUS: RS found with frequency ~0.5
+                - CASE_REFERENCE: RS not found in variant file
+        """
+        # Find the data for this RS ID
+        variant_data = self._find_variant_data(rs_id)
+
+        # If the RS ID is not found in the variant file
+        if not variant_data:
+            return self.CASE_REFERENCE
+
+        # Process the variant frequency
+        frequency_value = self._determine_frequency_value(variant_data[self.COL_VARIANT_FREQUENCY])
+
+        # Determine case based on frequency
+        if frequency_value == "1":
+            return self.CASE_HOMOZYGOUS
+        elif frequency_value == "0.5":
+            return self.CASE_HETEROZYGOUS
+        else:
+            # For error cases, treat as reference
+            return self.CASE_REFERENCE
+
     def sequence_for(self, rs_id, rs_reference_values):
         """
         Get the sequence value for a given RS ID.
@@ -62,7 +100,6 @@ class VariantFile:
                 - If RS ID not found in variant file: duplicated reference allele from RS totales
                 - If frequency is 1: duplicated reference allele from variant file
                 - If frequency is 0.5: reference allele + variant allele from variant file
-                - If error: error message
         """
         # Find the data for this RS ID
         variant_data = self._find_variant_data(rs_id)
@@ -78,16 +115,19 @@ class VariantFile:
 
         # If frequency is 1,
         # return the variant file's reference allele duplicated
-        if frequency_value == "1" and self.COL_REFERENCE_ALLELE in variant_data:
+        if frequency_value == "1":
             ref_allele = variant_data[self.COL_REFERENCE_ALLELE]
             return f"{ref_allele}{ref_allele}"
 
         # If frequency is 0.5,
         # return reference allele + variant allele
-        if frequency_value == "0.5" and self.COL_REFERENCE_ALLELE in variant_data and self.COL_VARIANT_ALLELE in variant_data:
+        if frequency_value == "0.5":
             ref_allele = variant_data[self.COL_REFERENCE_ALLELE]
             var_allele = variant_data[self.COL_VARIANT_ALLELE]
             return f"{ref_allele}{var_allele}"
+
+        # Return error message for unexpected cases
+        return frequency_value  # This will be the error message
 
     def _determine_frequency_value(self, frequency):
         """
