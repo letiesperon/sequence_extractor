@@ -79,7 +79,7 @@ def main():
 
             # Display statistics table
             st.subheader("Variant Files Statistics")
-            st.dataframe(stats_df)
+            st.dataframe(stats_df, hide_index=True,)
 
             # Download button for CSV
             csv = stats_df.to_csv(index=False)
