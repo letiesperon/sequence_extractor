@@ -1,6 +1,7 @@
 # Sequence Extractor
 
 A streamlit application for processing Excel files.
+Available at: https://sequence-extractor.streamlit.app/
 
 ## Description
 
