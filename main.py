@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import time
 import io
+import re
 
 def read_excel_file(file):
     """Read an Excel file and return the DataFrame."""
@@ -12,11 +13,15 @@ def count_total_rows(dataframes):
     return sum(len(df) for df in dataframes if df is not None)
 
 def create_statistics_table(variant_files, variant_dfs):
-    """Create a statistics table with file names and row counts."""
+    """Create a statistics table with individual IDs and row counts."""
     statistics = []
     for file, df in zip(variant_files, variant_dfs):
+        # Extract the leading number from the file name
+        match = re.match(r'(\d+)', file.name)
+        individual_id = match.group(1) if match else "Unknown"
+
         statistics.append({
-            "File Name": file.name,
+            "Individual": individual_id,
             "Row Count": len(df)
         })
     return pd.DataFrame(statistics)
