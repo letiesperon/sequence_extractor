@@ -1,40 +1,7 @@
 import streamlit as st
 import pandas as pd
-import time
-import io
-from file_utils import read_excel_file
 from variant_file import VariantFile
 from rs_totales_file import RSTotalesFile
-
-def count_total_rows(dataframes):
-    """Count total rows across all dataframes."""
-    return sum(len(df) for df in dataframes if df is not None)
-
-def create_statistics_table(variant_files, rs_reference_values):
-    """
-    Create a statistics table with individual IDs and RS values as columns.
-    Each cell shows "0.5", "1", duplicated reference allele, or error message.
-
-    Args:
-        variant_files: List of VariantFile objects
-        rs_reference_values: Dictionary with RS values as keys and Reference Allele values as values
-
-    Returns:
-        pd.DataFrame: Statistics table
-    """
-    # Initialize dict with Individual column
-    statistics = [{"Individual": vf.individual_id()} for vf in variant_files]
-
-    # Create the initial DataFrame
-    stats_df = pd.DataFrame(statistics)
-
-    # For each variant file and each RS value, find the data
-    for i, vf in enumerate(variant_files):
-        for rs_id in rs_reference_values.keys():
-            # Get the sequence value for this RS ID, passing the reference alleles dictionary
-            stats_df.at[i, rs_id] = vf.sequence_for(rs_id, rs_reference_values)
-
-    return stats_df
 
 def main():
     st.title("Excel File Sequence Extractor")
@@ -90,7 +57,35 @@ def main():
                 except ValueError as e:
                     st.error(f"Error processing files: {str(e)}")
 
+def count_total_rows(dataframes):
+    """Count total rows across all dataframes."""
+    return sum(len(df) for df in dataframes if df is not None)
 
+def create_statistics_table(variant_files, rs_reference_values):
+    """
+    Create a statistics table with individual IDs and RS values as columns.
+    Each cell shows "0.5", "1", duplicated reference allele, or error message.
+
+    Args:
+        variant_files: List of VariantFile objects
+        rs_reference_values: Dictionary with RS values as keys and Reference Allele values as values
+
+    Returns:
+        pd.DataFrame: Statistics table
+    """
+    # Initialize dict with Individual column
+    statistics = [{"Individual": vf.individual_id()} for vf in variant_files]
+
+    # Create the initial DataFrame
+    stats_df = pd.DataFrame(statistics)
+
+    # For each variant file and each RS value, find the data
+    for i, vf in enumerate(variant_files):
+        for rs_id in rs_reference_values.keys():
+            # Get the sequence value for this RS ID, passing the reference alleles dictionary
+            stats_df.at[i, rs_id] = vf.sequence_for(rs_id, rs_reference_values)
+
+    return stats_df
 
 if __name__ == "__main__":
     main()
