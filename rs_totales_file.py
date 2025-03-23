@@ -1,6 +1,10 @@
 from file_utils import read_excel_file
 
 class RSTotalesFile:
+    # Define column name constants
+    COL_RS_ID = 'RS ID'
+    COL_REFERENCE_ALLELE = 'Reference Allele'
+
     def __init__(self, file):
         """
         Initialize an RSTotalesFile object.
@@ -10,16 +14,26 @@ class RSTotalesFile:
         """
         self.file = file
         self.data = read_excel_file(file)
-        self.rs_values, self.error = self._extract_rs_values()
+        self._validate_columns()
+        self.rs_reference_values, self.error = self._extract_rss()
 
-    def _extract_rs_values(self):
+    def _validate_columns(self):
         """
-        Extract RS values from the first column of the file.
+        Validate that all required columns exist in the dataframe.
+
+        Raises:
+            ValueError: If any required column is missing
+        """
+        # Check if the Reference Allele column exists
+        if self.COL_REFERENCE_ALLELE not in self.data.columns:
+            raise ValueError(f"Missing required column '{self.COL_REFERENCE_ALLELE}' in RS totales file")
+
+    def _extract_rss(self):
+        """
+        Extract RS values and their corresponding Reference Allele value.
 
         Returns:
-            (list, str): A tuple containing either:
-                - (rs_values, None) if all values are valid
-                - (None, error_message) if invalid values are found
+            dict: Dictionary with RS values as keys and Reference Allele values as values
         """
         # Get the first column values, skipping the header (first row)
         first_column = self.data.iloc[1:, 0]
@@ -34,7 +48,13 @@ class RSTotalesFile:
             error_message = f"Invalid RS values found in the RS totales file: {', '.join(invalid_values)}"
             return None, error_message
 
-        return first_column.tolist(), None
+        # Create a dictionary with RS values as keys and Reference Allele values as values
+        rs_dict = {}
+        for index, rs_id in zip(first_column.index, first_column):
+            reference_allele = self.data.at[index, self.COL_REFERENCE_ALLELE]
+            rs_dict[rs_id] = reference_allele
+
+        return rs_dict, None
 
     def is_valid(self):
         """

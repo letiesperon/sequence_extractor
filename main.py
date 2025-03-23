@@ -10,14 +10,14 @@ def count_total_rows(dataframes):
     """Count total rows across all dataframes."""
     return sum(len(df) for df in dataframes if df is not None)
 
-def create_statistics_table(variant_files, rs_values):
+def create_statistics_table(variant_files, rs_reference_values):
     """
     Create a statistics table with individual IDs and RS values as columns.
-    Each cell shows "0.5" or "1" based on the variant frequency.
+    Each cell shows "0.5", "1", duplicated reference allele, or error message.
 
     Args:
         variant_files: List of VariantFile objects
-        rs_values: List of RS values to use as columns
+        rs_reference_values: Dictionary with RS values as keys and Reference Allele values as values
 
     Returns:
         pd.DataFrame: Statistics table
@@ -30,9 +30,9 @@ def create_statistics_table(variant_files, rs_values):
 
     # For each variant file and each RS value, find the data
     for i, vf in enumerate(variant_files):
-        for rs_val in rs_values:
-            # Get the sequence value for this RS ID
-            stats_df.at[i, rs_val] = vf.sequence_for(rs_val)
+        for rs_id in rs_reference_values.keys():
+            # Get the sequence value for this RS ID, passing the reference alleles dictionary
+            stats_df.at[i, rs_id] = vf.sequence_for(rs_id, rs_reference_values)
 
     return stats_df
 
@@ -53,42 +53,44 @@ def main():
         else:
             # Show spinner while processing
             with st.spinner("Processing files..."):
-                # Process the RS totales file
-                rs_file = RSTotalesFile(rs_totales_file)
+                try:
+                    # Process the RS totales file
+                    rs_file = RSTotalesFile(rs_totales_file)
 
-                if not rs_file.is_valid():
-                    st.error(rs_file.error)
-                    return
+                    if not rs_file.is_valid():
+                        st.error(rs_file.error)
+                        return
 
-                # Process variant files
-                variant_files = [VariantFile(file) for file in variant_tables_files]
+                    # Process variant files
+                    variant_files = [VariantFile(file) for file in variant_tables_files]
 
-                # Generate statistics table
-                stats_df = create_statistics_table(variant_files, rs_file.rs_values)
+                    # Generate statistics table
+                    stats_df = create_statistics_table(variant_files, rs_file.rs_reference_values)
 
-                # Combine all dataframes for counting
-                all_dfs = [rs_file.data] + [vf.data for vf in variant_files]
+                    # Combine all dataframes for counting
+                    all_dfs = [rs_file.data] + [vf.data for vf in variant_files]
 
-                # Simulate processing time
-                time.sleep(1)
+                    # Display results
+                    total_rows = count_total_rows(all_dfs)
+                    st.success(f"Processing complete!")
+                    st.metric("Total rows parsed across all files", total_rows)
 
-            # Display results
-            total_rows = count_total_rows(all_dfs)
-            st.success(f"Processing complete!")
-            st.metric("Total rows parsed across all files", total_rows)
+                    # Display statistics table
+                    st.subheader("Variant Files Statistics")
+                    st.dataframe(stats_df, hide_index=True)
 
-            # Display statistics table
-            st.subheader("Variant Files Statistics")
-            st.dataframe(stats_df, hide_index=True,)
+                    # Download button for CSV
+                    csv = stats_df.to_csv(index=False)
+                    st.download_button(
+                        label="Download Statistics as CSV",
+                        data=csv,
+                        file_name="variant_files_statistics.csv",
+                        mime="text/csv"
+                    )
+                except ValueError as e:
+                    st.error(f"Error processing files: {str(e)}")
 
-            # Download button for CSV
-            csv = stats_df.to_csv(index=False)
-            st.download_button(
-                label="Download Statistics as CSV",
-                data=csv,
-                file_name="variant_files_statistics.csv",
-                mime="text/csv"
-            )
+
 
 if __name__ == "__main__":
     main()

@@ -51,21 +51,31 @@ class VariantFile:
         match = re.match(r'(\d+)', self.name)
         return match.group(1) if match else self.name
 
-    def sequence_for(self, rs_id):
+    def sequence_for(self, rs_id, rs_reference_values):
         """
         Get the sequence value for a given RS ID.
 
         Args:
             rs_id (str): The RS ID to search for
+            rs_reference_values (dict): Dictionary mapping RS IDs to reference allele values
 
         Returns:
-            str: Sequence value ("0.5", "1", or error message)
-                 Empty string if RS ID not found
+            str: Sequence value ("0.5", "1", or error message), or duplicated reference allele if RS ID not found
         """
         # Find the data for this RS ID
         rs_data = self._find_rs_data(rs_id)
 
-        if not rs_data or self.COL_VARIANT_FREQUENCY not in rs_data:
+        # If the RS ID is not found in the variant file
+        if not rs_data:
+            # If we have a reference value for this RS ID
+            if rs_id in rs_reference_values:
+                ref_allele = rs_reference_values[rs_id]
+                # Return the reference allele duplicated
+                return f"{ref_allele}{ref_allele}"
+            return ""  # No reference value available
+
+        # If found but no variant frequency (shouldn't happen due to validation)
+        if self.COL_VARIANT_FREQUENCY not in rs_data:
             return ""
 
         # Process the variant frequency
