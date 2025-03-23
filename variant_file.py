@@ -3,6 +3,15 @@ from decimal import Decimal, ROUND_HALF_UP
 from file_utils import read_excel_file
 
 class VariantFile:
+    # Define column name constants
+    COL_VARIANT_FREQUENCY = 'Variant Frequency'
+    COL_REFERENCE_ALLELE = 'Reference Allele'
+    COL_VARIANT_ALLELE = 'Variant Allele'
+    COL_DBSNP_ID = 'dbSNP ID'
+
+    # List of all relevant columns to extract
+    RELEVANT_COLUMNS = [COL_VARIANT_FREQUENCY, COL_REFERENCE_ALLELE, COL_VARIANT_ALLELE]
+
     def __init__(self, file):
         """
         Initialize a VariantFile object.
@@ -13,6 +22,24 @@ class VariantFile:
         self.file = file
         self.name = file.name
         self.data = read_excel_file(file)
+
+        self._validate_columns()
+
+    def _validate_columns(self):
+        """
+        Validate that all required columns exist in the dataframe.
+
+        Raises:
+            ValueError: If any required column is missing
+        """
+        missing_columns = []
+
+        for col in self.RELEVANT_COLUMNS + [self.COL_DBSNP_ID]:
+            if col not in self.data.columns:
+                missing_columns.append(col)
+
+        if missing_columns:
+            raise ValueError(f"Missing required columns in variant file '{self.name}': {', '.join(missing_columns)}")
 
     def individual_id(self):
         """
@@ -32,22 +59,17 @@ class VariantFile:
             rs_id (str): The RS ID to search for
 
         Returns:
-            str: Comma-separated list of sequence values ("0.5", "1", or error message)
+            str: Sequence value ("0.5", "1", or error message)
                  Empty string if RS ID not found
         """
         # Find the data for this RS ID
         rs_data = self._find_rs_data(rs_id)
 
-        if not rs_data:
+        if not rs_data or self.COL_VARIANT_FREQUENCY not in rs_data:
             return ""
 
-        # Process each result if multiple matches found
-        results = []
-        for _, freq in rs_data:
-            results.append(self._determine_frequency_value(freq))
-
-        # Join with commas if multiple results
-        return ", ".join(results)
+        # Process the variant frequency
+        return self._determine_frequency_value(rs_data[self.COL_VARIANT_FREQUENCY])
 
     def _determine_frequency_value(self, frequency):
         """
@@ -85,37 +107,30 @@ class VariantFile:
 
     def _find_rs_data(self, rs_id):
         """
-        Find row numbers and variant frequencies where the given RS ID appears.
+        Find the first occurrence of the given RS ID and extract relevant column values.
 
         Args:
             rs_id (str): The RS ID to search for
 
         Returns:
-            list: List of tuples (row_number, variant_frequency) where the RS ID is found
+            dict: Dictionary with column names as keys and their values
+                  Empty dict if RS ID not found
         """
-        # Try to find the dbSNP ID column
-        if 'dbSNP ID' in self.data.columns:
-            id_column = 'dbSNP ID'
-        # If not found by name, use column H (index 7 in 0-based indexing)
-        elif len(self.data.columns) > 7:
-            id_column = self.data.columns[7]
-        else:
-            return []
-
-        # Try to find the Variant Frequency column
-        if 'Variant Frequency' in self.data.columns:
-            freq_column = 'Variant Frequency'
-        # If not found by name, use column M (index 12 in 0-based indexing)
-        elif len(self.data.columns) > 12:
-            freq_column = self.data.columns[12]
-        else:
-            return []
-
         # Convert values to string and make comparison case-insensitive
-        mask = self.data[id_column].astype(str).str.lower() == rs_id.lower()
+        mask = self.data[self.COL_DBSNP_ID].astype(str).str.lower() == rs_id.lower()
 
         # Get matching rows
         matching_rows = self.data[mask]
 
-        # Return list of tuples (row_number, variant_frequency)
-        return [(idx + 1, freq) for idx, freq in zip(matching_rows.index, matching_rows[freq_column])]
+        if matching_rows.empty:
+            return {}
+
+        # Get just the first matching row
+        first_match = matching_rows.iloc[0]
+
+        # Extract relevant columns to dictionary
+        result = {}
+        for col in self.RELEVANT_COLUMNS:
+            result[col] = first_match[col]
+
+        return result
