@@ -3,13 +3,11 @@ from decimal import Decimal, ROUND_HALF_UP
 from file_utils import read_excel_file
 
 class VariantFile:
-    # Define column name constants
     COL_VARIANT_FREQUENCY = 'Variant Frequency'
     COL_REFERENCE_ALLELE = 'Reference Allele'
     COL_VARIANT_ALLELE = 'Variant Allele'
     COL_DBSNP_ID = 'dbSNP ID'
 
-    # List of all relevant columns to extract
     RELEVANT_COLUMNS = [COL_VARIANT_FREQUENCY, COL_REFERENCE_ALLELE, COL_VARIANT_ALLELE]
 
     def __init__(self, file):
@@ -60,26 +58,36 @@ class VariantFile:
             rs_reference_values (dict): Dictionary mapping RS IDs to reference allele values
 
         Returns:
-            str: Sequence value ("0.5", "1", or error message), or duplicated reference allele if RS ID not found
+            str: Sequence value based on the following rules:
+                - If RS ID not found in variant file: duplicated reference allele from RS totales
+                - If frequency is 1: duplicated reference allele from variant file
+                - If frequency is 0.5: reference allele + variant allele from variant file
+                - If error: error message
         """
         # Find the data for this RS ID
-        rs_data = self._find_rs_data(rs_id)
+        variant_data = self._find_variant_data(rs_id)
 
-        # If the RS ID is not found in the variant file
-        if not rs_data:
-            # If we have a reference value for this RS ID
-            if rs_id in rs_reference_values:
-                ref_allele = rs_reference_values[rs_id]
-                # Return the reference allele duplicated
-                return f"{ref_allele}{ref_allele}"
-            return ""  # No reference value available
-
-        # If found but no variant frequency (shouldn't happen due to validation)
-        if self.COL_VARIANT_FREQUENCY not in rs_data:
-            return ""
+        # If the RS ID is not found in the variant file,
+        # return the reference allele duplicated
+        if not variant_data:
+          ref_allele = rs_reference_values[rs_id]
+          return f"{ref_allele}{ref_allele}"
 
         # Process the variant frequency
-        return self._determine_frequency_value(rs_data[self.COL_VARIANT_FREQUENCY])
+        frequency_value = self._determine_frequency_value(variant_data[self.COL_VARIANT_FREQUENCY])
+
+        # If frequency is 1,
+        # return the variant file's reference allele duplicated
+        if frequency_value == "1" and self.COL_REFERENCE_ALLELE in variant_data:
+            ref_allele = variant_data[self.COL_REFERENCE_ALLELE]
+            return f"{ref_allele}{ref_allele}"
+
+        # If frequency is 0.5,
+        # return reference allele + variant allele
+        if frequency_value == "0.5" and self.COL_REFERENCE_ALLELE in variant_data and self.COL_VARIANT_ALLELE in variant_data:
+            ref_allele = variant_data[self.COL_REFERENCE_ALLELE]
+            var_allele = variant_data[self.COL_VARIANT_ALLELE]
+            return f"{ref_allele}{var_allele}"
 
     def _determine_frequency_value(self, frequency):
         """
@@ -115,7 +123,7 @@ class VariantFile:
         except (ValueError, TypeError) as e:
             return f"ERROR: {str(e)}"
 
-    def _find_rs_data(self, rs_id):
+    def _find_variant_data(self, rs_id):
         """
         Find the first occurrence of the given RS ID and extract relevant column values.
 
