@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import time
+import io
 
 def read_excel_file(file):
     """Read an Excel file and return the DataFrame."""
@@ -9,6 +10,16 @@ def read_excel_file(file):
 def count_total_rows(dataframes):
     """Count total rows across all dataframes."""
     return sum(len(df) for df in dataframes if df is not None)
+
+def create_statistics_table(variant_files, variant_dfs):
+    """Create a statistics table with file names and row counts."""
+    statistics = []
+    for file, df in zip(variant_files, variant_dfs):
+        statistics.append({
+            "File Name": file.name,
+            "Row Count": len(df)
+        })
+    return pd.DataFrame(statistics)
 
 def main():
     st.title("Excel File Sequence Extractor")
@@ -35,6 +46,9 @@ def main():
                 for file in variant_tables_files:
                     variant_dfs.append(read_excel_file(file))
 
+                # Generate statistics table
+                stats_df = create_statistics_table(variant_tables_files, variant_dfs)
+
                 # Combine all dataframes for counting
                 all_dfs = [rs_df] + variant_dfs
 
@@ -45,6 +59,19 @@ def main():
             total_rows = count_total_rows(all_dfs)
             st.success(f"Processing complete!")
             st.metric("Total rows parsed across all files", total_rows)
+
+            # Display statistics table
+            st.subheader("Variant Files Statistics")
+            st.dataframe(stats_df)
+
+            # Download button for CSV
+            csv = stats_df.to_csv(index=False)
+            st.download_button(
+                label="Download Statistics as CSV",
+                data=csv,
+                file_name="variant_files_statistics.csv",
+                mime="text/csv"
+            )
 
 if __name__ == "__main__":
     main()
