@@ -36,6 +36,10 @@ SPANISH = {
     "color_heterozygous": "Naranja: Heterocigoto (frecuencia = 0.5)",
     "color_reference": "Sin color: Solo referencia (RS no encontrado en el archivo de variantes)",
 
+    # Column headers
+    "column_headers_expander": "Mostrar IDs de RS (para copiar)",
+    "column_headers_title": "Haz clic en cualquier ID para seleccionarlo y copiarlo:",
+
     # Error messages
     "error_processing": "Error al procesar los archivos: {}"
 }

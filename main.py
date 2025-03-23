@@ -60,6 +60,14 @@ def main():
                     styled_df = style_dataframe(stats_df, case_matrix)
                     st.dataframe(styled_df, hide_index=True)
 
+                    # Add copyable column headers
+                    if len(stats_df.columns) > 1:  # Only if we have RS columns
+                        with st.expander(T["column_headers_expander"]):
+                            st.markdown(f"**{T['column_headers_title']}**")
+                            for col in stats_df.columns:
+                                if col != "Individual":  # Skip the Individual column
+                                    st.code(col, language=None)
+
                     # Download button for CSV (unstyled)
                     csv = stats_df.to_csv(index=False)
                     st.download_button(
