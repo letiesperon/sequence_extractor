@@ -40,6 +40,9 @@ SPANISH = {
     "column_headers_expander": "Mostrar IDs de RS (para copiar)",
     "column_headers_title": "Haz clic en cualquier ID para seleccionarlo y copiarlo:",
 
+    # Table column names
+    "individual_column": "Individuo",
+
     # Error messages
     "error_processing": "Error al procesar los archivos: {}"
 }

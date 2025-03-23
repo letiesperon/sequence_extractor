@@ -65,7 +65,7 @@ def main():
                         with st.expander(T["column_headers_expander"]):
                             st.markdown(f"**{T['column_headers_title']}**")
                             for col in stats_df.columns:
-                                if col != "Individual":  # Skip the Individual column
+                                if col != T["individual_column"]:  # Skip the individual column
                                     st.code(col, language=None)
 
                     # Download button for CSV (unstyled)
@@ -100,8 +100,8 @@ def create_statistics_table(variant_files, rs_reference_values):
     Returns:
         tuple: (stats_df, case_matrix)
     """
-    # Initialize dict with Individual column
-    statistics = [{"Individual": vf.individual_id()} for vf in variant_files]
+    # Initialize dict with Individual column, using translation
+    statistics = [{T["individual_column"]: vf.individual_id()} for vf in variant_files]
 
     # Create the initial DataFrame
     stats_df = pd.DataFrame(statistics)
@@ -145,7 +145,7 @@ def style_dataframe(df, case_matrix):
     # Fill the style matrix with appropriate background colors
     for i in range(len(styled_df)):
         for j in range(len(styled_df.columns)):
-            if j > 0:  # Skip the 'Individual' column
+            if j > 0:  # Skip the individual column
                 col_name = styled_df.columns[j]
                 if i < len(case_matrix) and col_name in case_matrix.columns:
                     case = case_matrix.at[i, col_name]
