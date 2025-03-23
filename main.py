@@ -88,61 +88,6 @@ def main():
                 except ValueError as e:
                     st.error(T["error_processing"].format(str(e)))
 
-def count_total_rows(dataframes):
-    """Count total rows across all dataframes."""
-    return sum(len(df) for df in dataframes if df is not None)
-
-def style_dataframe(df, case_matrix):
-    """
-    Apply styling to the dataframe based on case matrix.
-
-    Args:
-        df: The dataframe to style
-        case_matrix: Matrix with same shape as df containing case values
-
-    Returns:
-        pd.Styler: The styled dataframe
-    """
-    # Create a copy of the dataframe to avoid modifying the original
-    styled_df = df.copy()
-
-    # Function that will be applied to the entire dataframe to set cell background colors
-    def highlight_cells(val, i, j):
-        if j == 0:  # Skip styling the 'Individual' column
-            return ''
-
-        # Get column name and convert index to original row index
-        col_name = styled_df.columns[j]
-
-        # Check if this is a valid cell to style
-        if col_name in case_matrix.columns and i < len(case_matrix):
-            case = case_matrix.at[i, col_name]
-
-            if case == VariantFile.CASE_HOMOZYGOUS:
-                return 'background-color: #add8e6'  # Light blue
-            elif case == VariantFile.CASE_HETEROZYGOUS:
-                return 'background-color: #ffa500'  # Orange
-
-        return ''
-
-    # Create a 2D matrix of styles with the same shape as our dataframe
-    style_matrix = pd.DataFrame('', index=styled_df.index, columns=styled_df.columns)
-
-    # Fill the style matrix with appropriate background colors
-    for i in range(len(styled_df)):
-        for j in range(len(styled_df.columns)):
-            if j > 0:  # Skip the 'Individual' column
-                col_name = styled_df.columns[j]
-                if i < len(case_matrix) and col_name in case_matrix.columns:
-                    case = case_matrix.at[i, col_name]
-                    if case == VariantFile.CASE_HOMOZYGOUS:
-                        style_matrix.iloc[i, j] = 'background-color: #add8e6'  # Light blue
-                    elif case == VariantFile.CASE_HETEROZYGOUS:
-                        style_matrix.iloc[i, j] = 'background-color: #ffa500'  # Orange
-
-    # Apply the style matrix to the dataframe
-    return styled_df.style.apply(lambda _: style_matrix, axis=None)
-
 def create_statistics_table(variant_files, rs_reference_values):
     """
     Create a statistics table with individual IDs and RS values as columns.
@@ -175,6 +120,42 @@ def create_statistics_table(variant_files, rs_reference_values):
             stats_df.at[i, rs_id] = vf.sequence_for(rs_id, rs_reference_values)
 
     return stats_df, case_matrix
+
+def count_total_rows(dataframes):
+    """Count total rows across all dataframes."""
+    return sum(len(df) for df in dataframes if df is not None)
+
+def style_dataframe(df, case_matrix):
+    """
+    Apply styling to the dataframe based on case matrix.
+
+    Args:
+        df: The dataframe to style
+        case_matrix: Matrix with same shape as df containing case values
+
+    Returns:
+        pd.Styler: The styled dataframe
+    """
+    # Create a copy of the dataframe to avoid modifying the original
+    styled_df = df.copy()
+
+    # Create a 2D matrix of styles with the same shape as our dataframe
+    style_matrix = pd.DataFrame('', index=styled_df.index, columns=styled_df.columns)
+
+    # Fill the style matrix with appropriate background colors
+    for i in range(len(styled_df)):
+        for j in range(len(styled_df.columns)):
+            if j > 0:  # Skip the 'Individual' column
+                col_name = styled_df.columns[j]
+                if i < len(case_matrix) and col_name in case_matrix.columns:
+                    case = case_matrix.at[i, col_name]
+                    if case == VariantFile.CASE_HOMOZYGOUS:
+                        style_matrix.iloc[i, j] = 'background-color: #add8e6'  # Light blue
+                    elif case == VariantFile.CASE_HETEROZYGOUS:
+                        style_matrix.iloc[i, j] = 'background-color: #ffa500'  # Orange
+
+    # Apply the style matrix to the dataframe
+    return styled_df.style.apply(lambda _: style_matrix, axis=None)
 
 if __name__ == "__main__":
     main()

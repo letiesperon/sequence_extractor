@@ -3,6 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from file_utils import read_excel_file
 
 class VariantFile:
+    # Define column name constants
     COL_VARIANT_FREQUENCY = 'Variant Frequency'
     COL_REFERENCE_ALLELE = 'Reference Allele'
     COL_VARIANT_ALLELE = 'Variant Allele'
@@ -25,7 +26,6 @@ class VariantFile:
         self.file = file
         self.name = file.name
         self.data = read_excel_file(file)
-
         self._validate_columns()
 
     def _validate_columns(self):
@@ -129,6 +129,36 @@ class VariantFile:
         # Return error message for unexpected cases
         return frequency_value  # This will be the error message
 
+    def _find_variant_data(self, rs_id):
+        """
+        Find the first occurrence of the given RS ID and extract relevant column values.
+
+        Args:
+            rs_id (str): The RS ID to search for
+
+        Returns:
+            dict: Dictionary with column names as keys and their values
+                  Empty dict if RS ID not found
+        """
+        # Convert values to string and make comparison case-insensitive
+        mask = self.data[self.COL_DBSNP_ID].astype(str).str.lower() == rs_id.lower()
+
+        # Get matching rows
+        matching_rows = self.data[mask]
+
+        if matching_rows.empty:
+            return {}
+
+        # Get just the first matching row
+        first_match = matching_rows.iloc[0]
+
+        # Extract relevant columns to dictionary
+        result = {}
+        for col in self.RELEVANT_COLUMNS:
+            result[col] = first_match[col]
+
+        return result
+
     def _determine_frequency_value(self, frequency):
         """
         Determine if frequency is closer to 0.5 or 1.
@@ -162,33 +192,3 @@ class VariantFile:
                 return f"ERROR (Invalid frequency: {freq})"
         except (ValueError, TypeError) as e:
             return f"ERROR: {str(e)}"
-
-    def _find_variant_data(self, rs_id):
-        """
-        Find the first occurrence of the given RS ID and extract relevant column values.
-
-        Args:
-            rs_id (str): The RS ID to search for
-
-        Returns:
-            dict: Dictionary with column names as keys and their values
-                  Empty dict if RS ID not found
-        """
-        # Convert values to string and make comparison case-insensitive
-        mask = self.data[self.COL_DBSNP_ID].astype(str).str.lower() == rs_id.lower()
-
-        # Get matching rows
-        matching_rows = self.data[mask]
-
-        if matching_rows.empty:
-            return {}
-
-        # Get just the first matching row
-        first_match = matching_rows.iloc[0]
-
-        # Extract relevant columns to dictionary
-        result = {}
-        for col in self.RELEVANT_COLUMNS:
-            result[col] = first_match[col]
-
-        return result
