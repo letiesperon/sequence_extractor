@@ -32,9 +32,10 @@ SPANISH = {
 
     # Color legend
     "color_legend_header": "Leyenda de Colores",
-    "color_homozygous": "Azul: Referencia homocigota (frecuencia = 1)",
-    "color_heterozygous": "Naranja: Heterocigoto (frecuencia = 0.5)",
-    "color_reference": "Sin color: Solo referencia (RS no encontrado en el archivo de variantes)",
+    "color_homozygous": "Azul claro: Homocigoto (frecuencia = 1)",
+    "color_heterozygous": "Naranja claro: Heterocigoto (frecuencia = 0.5)",
+    "color_reference_code": "Texto azul: Código de referencia",
+    "color_variant_code": "Texto rojo: Código de variante",
 
     # Column headers
     "column_headers_expander": "Mostrar IDs de RS (para copiar)",
