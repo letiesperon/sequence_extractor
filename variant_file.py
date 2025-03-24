@@ -87,44 +87,47 @@ class VariantFile:
             # For error cases, treat as reference
             return self.CASE_REFERENCE
 
-    def sequence_for(self, rs_id, rs_reference_values):
+    def sequence_for(self, rs_id, rs_reference_values, position):
         """
-        Get the sequence value for a given RS ID.
+        Get the sequence value for a given RS ID at the specified position (0 for first allele, 1 for second).
 
         Args:
             rs_id (str): The RS ID to search for
-            rs_reference_values (dict): Dictionary mapping RS IDs to reference allele values
+            rs_reference_values (dict): Dictionary mapping RS IDs to reference and variant codes
+            position (int): Which position to return (0 or 1)
 
         Returns:
-            str: Sequence value based on the following rules:
-                - If RS ID not found in variant file: duplicated reference allele from RS totales
-                - If frequency is 1: duplicated reference allele from variant file
-                - If frequency is 0.5: reference allele + variant allele from variant file
+            str: Code value based on the following rules:
+                - If RS ID not found in variant file: reference code at both positions
+                - If frequency is 1: reference code at both positions
+                - If frequency is 0.5: reference code for position 0, variant code for position 1
         """
         # Find the data for this RS ID
         variant_data = self._find_variant_data(rs_id)
 
+        # Get the codes for this RS
+        rs_codes = rs_reference_values[rs_id]
+        ref_code = rs_codes['ref_code']
+        var_code = rs_codes['var_code']
+
         # If the RS ID is not found in the variant file,
-        # return the reference allele duplicated
+        # return the reference code for both positions
         if not variant_data:
-          ref_allele = rs_reference_values[rs_id]
-          return f"{ref_allele}{ref_allele}"
+            return ref_code
 
         # Process the variant frequency
         frequency_value = self._determine_frequency_value(variant_data[self.COL_VARIANT_FREQUENCY])
 
-        # If frequency is 1,
-        # return the variant file's reference allele duplicated
+        # If frequency is 1, return reference code for both positions
         if frequency_value == "1":
-            ref_allele = variant_data[self.COL_REFERENCE_ALLELE]
-            return f"{ref_allele}{ref_allele}"
+            return var_code
 
-        # If frequency is 0.5,
-        # return reference allele + variant allele
+        # If frequency is 0.5, return ref code for position 0, variant code for position 1
         if frequency_value == "0.5":
-            ref_allele = variant_data[self.COL_REFERENCE_ALLELE]
-            var_allele = variant_data[self.COL_VARIANT_ALLELE]
-            return f"{ref_allele}{var_allele}"
+            if position == 0:
+                return ref_code
+            else:
+                return var_code
 
         # Return error message for unexpected cases
         return frequency_value  # This will be the error message

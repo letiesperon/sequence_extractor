@@ -107,33 +107,55 @@ def main():
 def create_statistics_table(variant_files, rs_reference_values):
     """
     Create a statistics table with individual IDs and RS values as columns.
+    Each individual has TWO rows, one for each allele.
     Also create a case matrix for styling.
 
     Args:
         variant_files: List of VariantFile objects
-        rs_reference_values: Dictionary with RS values as keys and Reference Allele values as values
+        rs_reference_values: Dictionary with RS values as keys and allele codes as values
 
     Returns:
         tuple: (stats_df, case_matrix)
     """
-    # Initialize dict with Individual column, using translation
-    statistics = [{T["individual_column"]: vf.individual_id()} for vf in variant_files]
+    # Create rows for each individual (two rows per individual)
+    statistics = []
+    for vf in variant_files:
+        # Add two rows for this individual
+        individual_id = vf.individual_id()
+        statistics.append({T["individual_column"]: individual_id})
+        statistics.append({T["individual_column"]: individual_id})
 
     # Create the initial DataFrame
     stats_df = pd.DataFrame(statistics)
 
-    # Create a dataframe to store cases
-    case_matrix = pd.DataFrame(index=range(len(variant_files)), columns=rs_reference_values.keys())
+    # Create a dataframe to store cases (one case per individual)
+    num_individuals = len(variant_files)
+    case_matrix = pd.DataFrame(index=range(num_individuals * 2), columns=rs_reference_values.keys())
 
     # For each variant file and each RS value, find the data
     for i, vf in enumerate(variant_files):
         for rs_id in rs_reference_values.keys():
-            # Get the case for this RS ID
+            # Get the case for this RS ID (same for both rows)
             case = vf.get_sequence_case(rs_id, rs_reference_values)
-            case_matrix.at[i, rs_id] = case
 
-            # Get the sequence value for this RS ID
-            stats_df.at[i, rs_id] = vf.sequence_for(rs_id, rs_reference_values)
+            # Set case for both rows of this individual
+            case_matrix.at[i*2, rs_id] = case
+            case_matrix.at[i*2+1, rs_id] = case
+
+            # Get the sequence value for this RS ID for each position
+            first_code = vf.sequence_for(rs_id, rs_reference_values, 0)
+            second_code = vf.sequence_for(rs_id, rs_reference_values, 1)
+
+            # Set values in corresponding rows - ensure they're stored as integers if numeric
+            stats_df.at[i*2, rs_id] = first_code
+            stats_df.at[i*2+1, rs_id] = second_code
+
+    # Convert numeric columns to integers where appropriate
+    for col in stats_df.columns:
+        if col != T["individual_column"]:
+            # Check if all non-null values in this column are numeric
+            if stats_df[col].dropna().apply(lambda x: str(x).replace('.', '', 1).isdigit()).all():
+                stats_df[col] = stats_df[col].apply(lambda x: int(float(x)) if pd.notna(x) and str(x).replace('.', '', 1).isdigit() else x)
 
     return stats_df, case_matrix
 

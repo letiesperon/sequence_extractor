@@ -32,8 +32,8 @@ For each cell, the app follows these rules:
    - Display the reference allele twice (e.g., "AA")
 
 2. **RS ID found on the variant file and frequency column rounds to 1**:
-   - Display the reference allele twice
-   - Example: If the reference allele is "G", returns "GG"
+   - Display the ?? allele twice
+   - Example: If the ?? allele is "G", returns "GG"
 
 3. **RS ID found on the variant file and frequency column rounds to 0.5**:
    - Display one reference allele and one variant allele

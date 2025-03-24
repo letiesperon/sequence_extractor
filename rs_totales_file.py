@@ -4,6 +4,9 @@ class RSTotalesFile:
     # Define column name constants
     COL_DBSNP_ID = 'dbSNP ID'
     COL_REFERENCE_ALLELE = 'Reference Allele'
+    COL_CODIGO_REFERENCE = 'Codigo reference allele'
+    COL_VARIANT_ALLELE = 'Variant Allele'
+    COL_CODIGO_VARIANT = 'Codigo variant allele'
 
     def __init__(self, file):
         """
@@ -25,7 +28,13 @@ class RSTotalesFile:
             ValueError: If any required column is missing
         """
         missing_columns = []
-        required_columns = [self.COL_DBSNP_ID, self.COL_REFERENCE_ALLELE]
+        required_columns = [
+            self.COL_DBSNP_ID,
+            self.COL_REFERENCE_ALLELE,
+            self.COL_CODIGO_REFERENCE,
+            self.COL_VARIANT_ALLELE,
+            self.COL_CODIGO_VARIANT
+        ]
 
         for col in required_columns:
             if col not in self.data.columns:
@@ -36,10 +45,13 @@ class RSTotalesFile:
 
     def _extract_rss(self):
         """
-        Extract RS values and their corresponding Reference Allele value.
+        Extract RS values and their corresponding codes for reference and variant alleles.
+        Ensure codes are formatted as integers without decimal places.
 
         Returns:
-            dict: Dictionary with RS values as keys and Reference Allele values as values
+            (dict, str): A tuple containing either:
+                - (rs_dict, None) if all values are valid
+                - (None, error_message) if invalid values are found
         """
         # Get the RS ID values from the dbSNP ID column
         rs_column = self.data[self.COL_DBSNP_ID].dropna()
@@ -54,13 +66,39 @@ class RSTotalesFile:
             error_message = f"Invalid RS values found in the RS totales file: {', '.join(invalid_values)}"
             return None, error_message
 
-        # Create a dictionary with RS values as keys and Reference Allele values as values
+        # Create a dictionary with RS values as keys and codes as values
         rs_dict = {}
         for index, rs_id in zip(rs_column.index, rs_column):
-            reference_allele = self.data.at[index, self.COL_REFERENCE_ALLELE]
-            rs_dict[rs_id] = reference_allele
+            # Convert codes to integers if they're numeric, otherwise keep as is
+            ref_code = self._format_code(self.data.at[index, self.COL_CODIGO_REFERENCE])
+            var_code = self._format_code(self.data.at[index, self.COL_CODIGO_VARIANT])
+            rs_dict[rs_id] = {
+                'ref_code': ref_code,
+                'var_code': var_code
+            }
 
         return rs_dict, None
+
+    def _format_code(self, code):
+        """
+        Format a code value to an integer if it's a number.
+
+        Args:
+            code: The code value to format
+
+        Returns:
+            int or str: The formatted code
+        """
+        try:
+            # Check if the value is numeric
+            if pd.notna(code) and str(code).replace('.', '', 1).isdigit():
+                # Convert to integer by first removing any decimal point
+                formatted_code = int(float(code))
+                return formatted_code
+            return code
+        except:
+            # If any error occurs, return the code as is
+            return code
 
     def is_valid(self):
         """
