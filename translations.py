@@ -44,5 +44,10 @@ SPANISH = {
     "individual_column": "Individuo",
 
     # Error messages
-    "error_processing": "Error al procesar los archivos: {}"
+    "error_processing": "Error al procesar los archivos: {}",
+
+    # Download options
+    "download_options": "Descargar resultados:",
+    "download_button_csv": "Descargar como CSV",
+    "download_button_excel": "Descargar como Excel"
 }

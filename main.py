@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io
 from variant_file import VariantFile
 from rs_totales_file import RSTotalesFile
 from translations import SPANISH as T
@@ -68,14 +69,29 @@ def main():
                                 if col != T["individual_column"]:  # Skip the individual column
                                     st.code(col, language=None)
 
-                    # Download button for CSV (unstyled)
+                    # Download buttons section - use narrower columns to place buttons closer together
+                    st.write(T["download_options"])
+                    download_cols = st.columns([1, 1, 4])  # First two columns are narrow, third takes remaining space
+
+                    # CSV Download button in first column
                     csv = stats_df.to_csv(index=False)
-                    st.download_button(
-                        label=T["download_button"],
-                        data=csv,
-                        file_name="variant_files_statistics.csv",
-                        mime="text/csv"
-                    )
+                    with download_cols[0]:
+                        st.download_button(
+                            label=T["download_button_csv"],
+                            data=csv,
+                            file_name="variant_files_statistics.csv",
+                            mime="text/csv"
+                        )
+
+                    # Excel Download button in second column (right next to CSV button)
+                    excel_file = to_excel(stats_df)
+                    with download_cols[1]:
+                        st.download_button(
+                            label=T["download_button_excel"],
+                            data=excel_file,
+                            file_name="variant_files_statistics.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        )
 
                     # Display color legend
                     st.markdown(f"""
@@ -156,6 +172,25 @@ def style_dataframe(df, case_matrix):
 
     # Apply the style matrix to the dataframe
     return styled_df.style.apply(lambda _: style_matrix, axis=None)
+
+def to_excel(df):
+    """
+    Convert a DataFrame to an Excel file.
+
+    Args:
+        df: The DataFrame to convert
+
+    Returns:
+        bytes: The Excel file as bytes
+    """
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name="Results")
+
+    # Seek to the beginning of the stream
+    output.seek(0)
+
+    return output.getvalue()
 
 if __name__ == "__main__":
     main()
