@@ -20,7 +20,10 @@ SPANISH = {
     # Input hints
     "rs_totales_hint": """📋 Este archivo debe contener las siguientes columnas:
     - 'dbSNP ID'
-    - 'Reference Allele'""",
+    - 'Reference Allele'
+    - 'Codigo reference allele'
+    - 'Variant Allele'
+    - 'Codigo variant allele'""",
 
     "variant_tables_hint": """📋 Estos archivos deben contener las siguientes columnas:
     - 'dbSNP ID'
@@ -54,7 +57,7 @@ SPANISH = {
 
     # Tabs
     "codes_tab": "Tabla de Códigos (2 filas por individuo)",
-    "nucleotides_tab": "Tabla de Nucleótidos (1 fila por individuo)",
-    "codes_table_header": "Tabla de Códigos Genéticos",
+    "nucleotides_tab": "Tabla para Structure (1 fila por individuo)",
+    "codes_table_header": "Tabla de Códigos de Nucleótidos para Structure",
     "nucleotides_table_header": "Tabla de Nucleótidos"
 }

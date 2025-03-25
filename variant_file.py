@@ -54,19 +54,16 @@ class VariantFile:
         match = re.match(r'(\d+)', self.name)
         return match.group(1) if match else self.name
 
-    def get_sequence_case(self, rs_id, rs_reference_values):
+    def get_sequence_case(self, rs_id, rs_data):
         """
         Determine which case applies for a given RS ID.
 
         Args:
             rs_id (str): The RS ID to search for
-            rs_reference_values (dict): Dictionary mapping RS IDs to reference allele values
+            rs_data (dict): Dictionary with RS ID data
 
         Returns:
-            str: One of the case constants:
-                - CASE_HOMOZYGOUS: RS found with frequency ~1.0
-                - CASE_HETEROZYGOUS: RS found with frequency ~0.5
-                - CASE_REFERENCE: RS not found in variant file
+            str: One of the case constants
         """
         # Find the data for this RS ID
         variant_data = self._find_variant_data(rs_id)
@@ -89,26 +86,36 @@ class VariantFile:
 
     def sequence_for(self, rs_id, rs_reference_values, position):
         """
-        Get the sequence value for a given RS ID at the specified position (0 for first allele, 1 for second).
+        Get the code value for a given RS ID at the specified position.
 
         Args:
             rs_id (str): The RS ID to search for
-            rs_reference_values (dict): Dictionary mapping RS IDs to reference and variant codes
-            position (int): Which position to return (0 or 1)
+            rs_reference_values (dict): Dictionary with RS ID data
+            position (int): Which position to return (0 for first allele, 1 for second)
 
         Returns:
-            str: Code value based on the following rules:
-                - If RS ID not found in variant file: reference code at both positions
-                - If frequency is 1: reference code at both positions
-                - If frequency is 0.5: reference code for position 0, variant code for position 1
+            int/str: Code value for the specified position
+        """
+        return self.code_for_position(rs_id, rs_reference_values, position)
+
+    def code_for_position(self, rs_id, rs_data, position):
+        """
+        Get the code value for a given RS ID at the specified position.
+
+        Args:
+            rs_id (str): The RS ID to search for
+            rs_data (dict): Dictionary with RS ID data
+            position (int): Which position to return (0 for first allele, 1 for second)
+
+        Returns:
+            int/str: Code value for the specified position
         """
         # Find the data for this RS ID
         variant_data = self._find_variant_data(rs_id)
 
         # Get the codes for this RS
-        rs_codes = rs_reference_values[rs_id]
-        ref_code = rs_codes['ref_code']
-        var_code = rs_codes['var_code']
+        ref_code = rs_data[rs_id]['ref_code']
+        var_code = rs_data[rs_id]['var_code']
 
         # If the RS ID is not found in the variant file,
         # return the reference code for both positions
@@ -118,7 +125,7 @@ class VariantFile:
         # Process the variant frequency
         frequency_value = self._determine_frequency_value(variant_data[self.COL_VARIANT_FREQUENCY])
 
-        # If frequency is 1, return reference code for both positions
+        # If frequency is 1, return variant code for both positions
         if frequency_value == "1":
             return var_code
 
@@ -128,6 +135,43 @@ class VariantFile:
                 return ref_code
             else:
                 return var_code
+
+        # Return error message for unexpected cases
+        return frequency_value  # This will be the error message
+
+    def nucleotide_pair(self, rs_id, rs_data):
+        """
+        Get the concatenated nucleotide pair for a given RS ID.
+
+        Args:
+            rs_id (str): The RS ID to search for
+            rs_data (dict): Dictionary with RS ID data
+
+        Returns:
+            str: Concatenated nucleotide pair
+        """
+        # Find the data for this RS ID
+        variant_data = self._find_variant_data(rs_id)
+
+        # Get the nucleotides for this RS
+        ref_allele = rs_data[rs_id]['ref_allele']
+        var_allele = rs_data[rs_id]['var_allele']
+
+        # If the RS ID is not found in the variant file,
+        # return the reference allele duplicated
+        if not variant_data:
+            return f"{ref_allele}{ref_allele}"
+
+        # Process the variant frequency
+        frequency_value = self._determine_frequency_value(variant_data[self.COL_VARIANT_FREQUENCY])
+
+        # If frequency is 1, return variant allele duplicated
+        if frequency_value == "1":
+            return f"{var_allele}{var_allele}"
+
+        # If frequency is 0.5, return reference + variant allele
+        if frequency_value == "0.5":
+            return f"{ref_allele}{var_allele}"
 
         # Return error message for unexpected cases
         return frequency_value  # This will be the error message

@@ -14,6 +14,19 @@ st.set_page_config(
 def main():
     st.title(T["app_title"])
 
+    # Display file upload interface
+    rs_totales_file, variant_tables_files = display_file_inputs()
+
+    # Submit button
+    if st.button(T["submit_button"]):
+        if rs_totales_file is None or not variant_tables_files:
+            st.error(T["please_upload_error"])
+        else:
+            # Process files and display results
+            process_files(rs_totales_file, variant_tables_files)
+
+def display_file_inputs():
+    """Display the file upload sections and return the uploaded files"""
     # First input for single file
     st.subheader(T["input_files_header"])
     rs_totales_file = st.file_uploader(T["rs_totales_label"], type=["xlsx"])
@@ -27,120 +40,53 @@ def main():
     # Add separate hint about filename format
     st.caption(T["filename_hint"])
 
-    # Submit button
-    if st.button(T["submit_button"]):
-        if rs_totales_file is None or not variant_tables_files:
-            st.error(T["please_upload_error"])
-        else:
-            # Show spinner while processing
-            with st.spinner(T["processing_spinner"]):
-                try:
-                    # Process the RS totales file
-                    rs_file = RSTotalesFile(rs_totales_file)
+    return rs_totales_file, variant_tables_files
 
-                    if not rs_file.is_valid():
-                        st.error(rs_file.error)
-                        return
+def process_files(rs_totales_file, variant_tables_files):
+    """Process the uploaded files and display results"""
+    # Show spinner while processing
+    with st.spinner(T["processing_spinner"]):
+        try:
+            # Load and validate files
+            rs_file, variant_files = load_and_validate_files(rs_totales_file, variant_tables_files)
+            if rs_file is None:
+                return
 
-                    # Process variant files
-                    variant_files = [VariantFile(file) for file in variant_tables_files]
+            # Generate data tables
+            codes_table, case_matrix, code_type_matrix = create_statistics_table(variant_files, rs_file.rs_data)
+            nucleotides_table, nucleotides_case_matrix = create_nucleotides_table(variant_files, rs_file.rs_data)
 
-                    # Generate statistics table and its styling
-                    stats_df, case_matrix, code_type_matrix = create_statistics_table(variant_files, rs_file.rs_reference_values)
+            # Store the nucleotides case matrix as an attribute for later use
+            process_files.nucleotides_case_matrix = nucleotides_case_matrix
 
-                    # Combine all dataframes for counting
-                    all_dfs = [rs_file.data] + [vf.data for vf in variant_files]
+            # Display statistics
+            all_dfs = [rs_file.data] + [vf.data for vf in variant_files]
+            total_rows = count_total_rows(all_dfs)
+            st.success(T["processing_complete"])
+            st.metric(T["total_rows_parsed"], total_rows)
 
-                    # Display results
-                    total_rows = count_total_rows(all_dfs)
-                    st.success(T["processing_complete"])
-                    st.metric(T["total_rows_parsed"], total_rows)
+            # Create and display tabs for different views
+            display_tabbed_results(codes_table, case_matrix, code_type_matrix, nucleotides_table)
 
-                    # Generate both tables
-                    codes_table, case_matrix, code_type_matrix = create_statistics_table(variant_files, rs_file.rs_reference_values)
-                    nucleotides_table = create_nucleotides_table(variant_files, rs_file.data)
+        except ValueError as e:
+            st.error(T["error_processing"].format(str(e)))
 
-                    # Create tabs for the two different views
-                    tab1, tab2 = st.tabs([T["codes_tab"], T["nucleotides_tab"]])
+# Initialize the attribute to store the nucleotides case matrix
+process_files.nucleotides_case_matrix = None
 
-                    with tab1:
-                        # Display the codes table (current implementation)
-                        st.subheader(T["codes_table_header"])
-                        styled_codes_df = style_dataframe(codes_table, case_matrix, code_type_matrix)
-                        st.dataframe(styled_codes_df, hide_index=True)
+def load_and_validate_files(rs_totales_file, variant_tables_files):
+    """Load and validate all input files"""
+    # Process the RS totales file
+    rs_file = RSTotalesFile(rs_totales_file)
 
-                        # Download buttons for codes table
-                        st.write(T["download_options"])
-                        download_cols = st.columns([1, 1, 4])
+    if not rs_file.is_valid():
+        st.error(rs_file.error)
+        return None, None
 
-                        # CSV Download button
-                        csv_codes = codes_table.to_csv(index=False)
-                        with download_cols[0]:
-                            st.download_button(
-                                label=T["download_button_csv"],
-                                data=csv_codes,
-                                file_name="variant_codes_table.csv",
-                                mime="text/csv"
-                            )
+    # Process variant files
+    variant_files = [VariantFile(file) for file in variant_tables_files]
 
-                        # Excel Download button
-                        excel_codes = to_excel(codes_table)
-                        with download_cols[1]:
-                            st.download_button(
-                                label=T["download_button_excel"],
-                                data=excel_codes,
-                                file_name="variant_codes_table.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            )
-
-                        # Display color legend for codes
-                        st.markdown(f"""
-                        ### {T["color_legend_header"]}
-                        - 🔵 **{T["color_homozygous"]}**
-                        - 🟠 **{T["color_heterozygous"]}**
-                        - 🔵 **{T["color_reference_code"]}**
-                        - 🔴 **{T["color_variant_code"]}**
-                        """)
-
-                    with tab2:
-                        # Display the nucleotides table (original style)
-                        st.subheader(T["nucleotides_table_header"])
-                        st.dataframe(nucleotides_table, hide_index=True)
-
-                        # Download buttons for nucleotides table
-                        st.write(T["download_options"])
-                        download_cols = st.columns([1, 1, 4])
-
-                        # CSV Download button
-                        csv_nucl = nucleotides_table.to_csv(index=False)
-                        with download_cols[0]:
-                            st.download_button(
-                                label=T["download_button_csv"],
-                                data=csv_nucl,
-                                file_name="variant_nucleotides_table.csv",
-                                mime="text/csv"
-                            )
-
-                        # Excel Download button
-                        excel_nucl = to_excel(nucleotides_table)
-                        with download_cols[1]:
-                            st.download_button(
-                                label=T["download_button_excel"],
-                                data=excel_nucl,
-                                file_name="variant_nucleotides_table.xlsx",
-                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                            )
-
-                    # Add copyable column headers (available in both tabs)
-                    if len(codes_table.columns) > 1:  # Only if we have RS columns
-                        with st.expander(T["column_headers_expander"]):
-                            st.markdown(f"**{T['column_headers_title']}**")
-                            for col in codes_table.columns:
-                                if col != T["individual_column"]:  # Skip the individual column
-                                    st.code(col, language=None)
-
-                except ValueError as e:
-                    st.error(T["error_processing"].format(str(e)))
+    return rs_file, variant_files
 
 def create_statistics_table(variant_files, rs_reference_values):
     """
@@ -205,9 +151,74 @@ def create_statistics_table(variant_files, rs_reference_values):
 
     return stats_df, case_matrix, code_type_matrix
 
+def create_nucleotides_table(variant_files, rs_data):
+    """
+    Create a table with nucleotides instead of codes, with one row per individual.
+    Uses the nucleotide_pair method of VariantFile to get concatenated nucleotide pairs.
+
+    Args:
+        variant_files: List of VariantFile objects
+        rs_data: Dictionary with RS IDs as keys and all related data as values
+
+    Returns:
+        tuple: (nucl_df, nuc_case_matrix) - The nucleotides table and its case matrix
+    """
+    # Initialize dict with Individual column
+    statistics = [{T["individual_column"]: vf.individual_id()} for vf in variant_files]
+
+    # Create the initial DataFrame
+    nucl_df = pd.DataFrame(statistics)
+
+    # Create a case matrix for styling (one case per individual)
+    nuc_case_matrix = pd.DataFrame(index=range(len(variant_files)), columns=rs_data.keys())
+
+    # For each variant file and each RS value, get the nucleotide pair and case
+    for i, vf in enumerate(variant_files):
+        for rs_id in rs_data.keys():
+            # Get the case for this RS ID
+            case = vf.get_sequence_case(rs_id, rs_data)
+            nuc_case_matrix.at[i, rs_id] = case
+
+            # Get the nucleotide pair for this RS ID
+            nucl_df.at[i, rs_id] = vf.nucleotide_pair(rs_id, rs_data)
+
+    return nucl_df, nuc_case_matrix
+
 def count_total_rows(dataframes):
     """Count total rows across all dataframes."""
     return sum(len(df) for df in dataframes if df is not None)
+
+def display_tabbed_results(codes_table, case_matrix, code_type_matrix, nucleotides_table):
+    """Display results in tabbed interface"""
+    # Create tabs for the two different views
+    tab1, tab2 = st.tabs([T["codes_tab"], T["nucleotides_tab"]])
+
+    with tab1:
+        display_codes_tab(codes_table, case_matrix, code_type_matrix)
+
+    with tab2:
+        # Get the nucleotides case matrix from the nucleotides table creator
+        nucleotides_case_matrix = process_files.nucleotides_case_matrix
+        display_nucleotides_tab(nucleotides_table, nucleotides_case_matrix)
+
+def display_codes_tab(codes_table, case_matrix, code_type_matrix):
+    """Display the codes table tab content"""
+    # Display the codes table with styling
+    st.subheader(T["codes_table_header"])
+    styled_codes_df = style_dataframe(codes_table, case_matrix, code_type_matrix)
+    st.dataframe(styled_codes_df, hide_index=True)
+
+    # Display download buttons
+    display_download_buttons(codes_table, "variant_codes_table")
+
+    # Display color legend
+    st.markdown(f"""
+    ### {T["color_legend_header"]}
+    - 🔵 **{T["color_homozygous"]}**
+    - 🟠 **{T["color_heterozygous"]}**
+    - 🔵 **{T["color_reference_code"]}**
+    - 🔴 **{T["color_variant_code"]}**
+    """)
 
 def style_dataframe(df, case_matrix, code_type_matrix):
     """
@@ -254,6 +265,80 @@ def style_dataframe(df, case_matrix, code_type_matrix):
     # Apply the style matrix to the dataframe
     return styled_df.style.apply(lambda _: style_matrix, axis=None)
 
+def display_nucleotides_tab(nucleotides_table, nucleotides_case_matrix):
+    """Display the nucleotides table tab content"""
+    # Display the nucleotides table with styling
+    st.subheader(T["nucleotides_table_header"])
+
+    # Apply styling to the nucleotides table
+    styled_nucleotides_df = style_nucleotides_table(nucleotides_table, nucleotides_case_matrix)
+    st.dataframe(styled_nucleotides_df, hide_index=True)
+
+    # Display download buttons
+    display_download_buttons(nucleotides_table, "variant_nucleotides_table")
+
+def style_nucleotides_table(df, case_matrix):
+    """
+    Apply styling to the nucleotides table:
+    - Background color based on homozygous/heterozygous status
+
+    Args:
+        df: The dataframe to style
+        case_matrix: Matrix with case information
+
+    Returns:
+        pd.Styler: The styled dataframe
+    """
+    # Create a copy of the dataframe to avoid modifying the original
+    styled_df = df.copy()
+
+    # Create a matrix for cell styling
+    style_matrix = pd.DataFrame('', index=styled_df.index, columns=styled_df.columns)
+
+    # Fill the style matrix with appropriate styling
+    for i in range(len(styled_df)):
+        # Now add cell-specific styling (skipping the individual column)
+        for j in range(1, len(styled_df.columns)):
+            col_name = styled_df.columns[j]
+            if col_name in case_matrix.columns:
+                # Get case for this cell
+                if i < len(case_matrix):
+                    case = case_matrix.at[i, col_name]
+
+                    # Add background color based on case type
+                    if case == VariantFile.CASE_HOMOZYGOUS:
+                        style_matrix.iloc[i, j] = "background-color: #add8e6;"  # Light blue
+                    elif case == VariantFile.CASE_HETEROZYGOUS:
+                        style_matrix.iloc[i, j] = "background-color: #ffa500;"  # Orange
+
+    # Apply the style matrix to the dataframe
+    return styled_df.style.apply(lambda _: style_matrix, axis=None)
+
+def display_download_buttons(df, base_filename):
+    """Display CSV and Excel download buttons for a dataframe"""
+    st.write(T["download_options"])
+    download_cols = st.columns([1, 1, 4])
+
+    # CSV Download button
+    csv_data = df.to_csv(index=False)
+    with download_cols[0]:
+        st.download_button(
+            label=T["download_button_csv"],
+            data=csv_data,
+            file_name=f"{base_filename}.csv",
+            mime="text/csv"
+        )
+
+    # Excel Download button
+    excel_data = to_excel(df)
+    with download_cols[1]:
+        st.download_button(
+            label=T["download_button_excel"],
+            data=excel_data,
+            file_name=f"{base_filename}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
 def to_excel(df):
     """
     Convert a DataFrame to an Excel file.
@@ -272,67 +357,6 @@ def to_excel(df):
     output.seek(0)
 
     return output.getvalue()
-
-def create_nucleotides_table(variant_files, rs_totales_df):
-    """
-    Create a table with nucleotides instead of codes, with one row per individual.
-    This follows the original logic of concatenating the nucleotides.
-
-    Args:
-        variant_files: List of VariantFile objects
-        rs_totales_df: DataFrame with RS totales data
-
-    Returns:
-        pd.DataFrame: Table with nucleotides
-    """
-    # Initialize dict with Individual column
-    statistics = [{T["individual_column"]: vf.individual_id()} for vf in variant_files]
-
-    # Create the initial DataFrame
-    nucl_df = pd.DataFrame(statistics)
-
-    # Get RS IDs and create a reference dict with actual nucleotides
-    rs_dict = {}
-    for _, row in rs_totales_df.iterrows():
-        if 'dbSNP ID' in row and pd.notna(row['dbSNP ID']):
-            rs_id = str(row['dbSNP ID']).strip()
-            if rs_id.lower().startswith('rs'):
-                rs_dict[rs_id] = {
-                    'ref_allele': row['Reference Allele'],
-                    'var_allele': row['Variant Allele']
-                }
-
-    # For each variant file and each RS value, find the data
-    for i, vf in enumerate(variant_files):
-        for rs_id in rs_dict.keys():
-            # Use the original concatenation logic
-            rs_data = vf._find_variant_data(rs_id)
-
-            # If the RS ID is not found in the variant file
-            if not rs_data:
-                ref_allele = rs_dict[rs_id]['ref_allele']
-                nucl_df.at[i, rs_id] = f"{ref_allele}{ref_allele}"
-                continue
-
-            # Process the variant frequency
-            frequency_value = vf._determine_frequency_value(rs_data[vf.COL_VARIANT_FREQUENCY])
-
-            # If frequency is 1, return variant allele duplicated
-            if frequency_value == "1":
-                var_allele = rs_dict[rs_id]['var_allele']
-                nucl_df.at[i, rs_id] = f"{var_allele}{var_allele}"
-
-            # If frequency is 0.5, return reference + variant allele
-            elif frequency_value == "0.5":
-                ref_allele = rs_dict[rs_id]['ref_allele']
-                var_allele = rs_dict[rs_id]['var_allele']
-                nucl_df.at[i, rs_id] = f"{ref_allele}{var_allele}"
-
-            # If error, return the error message
-            else:
-                nucl_df.at[i, rs_id] = frequency_value
-
-    return nucl_df
 
 if __name__ == "__main__":
     main()

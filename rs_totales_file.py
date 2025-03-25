@@ -1,3 +1,4 @@
+import pandas as pd
 from file_utils import read_excel_file
 
 class RSTotalesFile:
@@ -18,7 +19,7 @@ class RSTotalesFile:
         self.file = file
         self.data = read_excel_file(file)
         self._validate_columns()
-        self.rs_reference_values, self.error = self._extract_rss()
+        self.rs_data, self.error = self._extract_rss()
 
     def _validate_columns(self):
         """
@@ -43,15 +44,23 @@ class RSTotalesFile:
         if missing_columns:
             raise ValueError(f"Missing required columns in RS totales file: {', '.join(missing_columns)}")
 
-    def _extract_rss(self):
+    def is_valid(self):
         """
-        Extract RS values and their corresponding codes for reference and variant alleles.
-        Ensure codes are formatted as integers without decimal places.
+        Check if the file has valid RS values.
 
         Returns:
-            (dict, str): A tuple containing either:
-                - (rs_dict, None) if all values are valid
-                - (None, error_message) if invalid values are found
+            bool: True if the file has valid RS values, False otherwise
+        """
+        return self.error is None
+
+    def _extract_rss(self):
+        """
+        Extract RS values and their associated data.
+
+        Returns:
+            tuple: A tuple containing:
+                - rs_data: Dictionary with RS IDs as keys and all related data as values
+                - error_message: String with error if any, None otherwise
         """
         # Get the RS ID values from the dbSNP ID column
         rs_column = self.data[self.COL_DBSNP_ID].dropna()
@@ -66,18 +75,23 @@ class RSTotalesFile:
             error_message = f"Invalid RS values found in the RS totales file: {', '.join(invalid_values)}"
             return None, error_message
 
-        # Create a dictionary with RS values as keys and codes as values
-        rs_dict = {}
+        # Create a dictionary with RS values as keys and all data as values
+        rs_data = {}
+
         for index, rs_id in zip(rs_column.index, rs_column):
-            # Convert codes to integers if they're numeric, otherwise keep as is
             ref_code = self._format_code(self.data.at[index, self.COL_CODIGO_REFERENCE])
             var_code = self._format_code(self.data.at[index, self.COL_CODIGO_VARIANT])
-            rs_dict[rs_id] = {
+            ref_allele = self.data.at[index, self.COL_REFERENCE_ALLELE]
+            var_allele = self.data.at[index, self.COL_VARIANT_ALLELE]
+
+            rs_data[rs_id] = {
                 'ref_code': ref_code,
-                'var_code': var_code
+                'var_code': var_code,
+                'ref_allele': ref_allele,
+                'var_allele': var_allele
             }
 
-        return rs_dict, None
+        return rs_data, None
 
     def _format_code(self, code):
         """
@@ -99,12 +113,3 @@ class RSTotalesFile:
         except:
             # If any error occurs, return the code as is
             return code
-
-    def is_valid(self):
-        """
-        Check if the file has valid RS values.
-
-        Returns:
-            bool: True if the file has valid RS values, False otherwise
-        """
-        return self.error is None
