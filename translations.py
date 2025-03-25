@@ -50,5 +50,11 @@ SPANISH = {
     # Download options
     "download_options": "Descargar resultados:",
     "download_button_csv": "Descargar como CSV",
-    "download_button_excel": "Descargar como Excel"
+    "download_button_excel": "Descargar como Excel",
+
+    # Tabs
+    "codes_tab": "Tabla de Códigos (2 filas por individuo)",
+    "nucleotides_tab": "Tabla de Nucleótidos (1 fila por individuo)",
+    "codes_table_header": "Tabla de Códigos Genéticos",
+    "nucleotides_table_header": "Tabla de Nucleótidos"
 }
