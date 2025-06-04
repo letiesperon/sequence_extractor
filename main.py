@@ -29,12 +29,12 @@ def display_file_inputs():
     """Display the file upload sections and return the uploaded files"""
     # First input for single file
     st.subheader(T["input_files_header"])
-    rs_totales_file = st.file_uploader(T["rs_totales_label"], type=["xlsx"])
+    rs_totales_file = st.file_uploader(T["rs_totales_label"], type=["xlsx", "xls"])
     # Add hint about required columns for RS totales file
     st.caption(T["rs_totales_hint"])
 
     # Second input for multiple files
-    variant_tables_files = st.file_uploader(T["variant_tables_label"], type=["xlsx"], accept_multiple_files=True)
+    variant_tables_files = st.file_uploader(T["variant_tables_label"], type=["xlsx", "xls"], accept_multiple_files=True)
     # Add hint about required columns and filename format for variant files
     st.caption(T["variant_tables_hint"])
     # Add separate hint about filename format

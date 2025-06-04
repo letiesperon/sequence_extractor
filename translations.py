@@ -31,7 +31,7 @@ SPANISH = {
     - 'Reference Allele'
     - 'Variant Allele'""",
 
-    "filename_hint": "📋 El nombre de cada archivo debe contener un identificador del individuo numérico (ej. '73-variant-table.xlsx' significa individuo 73)",
+    "filename_hint": "📋 El nombre de cada archivo debe contener un identificador del individuo numérico (ej. '73-variant-table.xlsx' o '73-variant-table.xls' significa individuo 73)",
 
     # Color legend
     "color_legend_header": "Leyenda de Colores",
